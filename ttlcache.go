@@ -7,22 +7,28 @@ import (
 	"time"
 )
 
+// ERR_KEY_EXISTS is the error if a key is unexpectedly already present
 var ERR_KEY_EXISTS = errors.New("TTLCache: Key exists")
+
+// ERR_KEY_NO_EXISTS is the error if an expected key is not present
 var ERR_KEY_NO_EXISTS = errors.New("TTLCache: Key doesn't exist")
 
-func NewTTLCache(ttl time.Duration) *TTLCache {
+// NewTTLCache creates a ttl cache with a default duration
+func NewTTLCache(defaultTTL time.Duration) *TTLCache {
 	return &TTLCache{
-		ttl:  ttl,
-		keys: map[string]interface{}{},
+		defaultTTL: defaultTTL,
+		keys:       map[string]interface{}{},
 	}
 }
 
+// TTLCache stores the cache state
 type TTLCache struct {
 	sync.Mutex
-	ttl  time.Duration
-	keys map[string]interface{}
+	defaultTTL time.Duration
+	keys       map[string]interface{}
 }
 
+// Exists checks if a key is in the cache
 func (c *TTLCache) Exists(key string) bool {
 	c.Lock()
 	defer c.Unlock()
@@ -30,6 +36,7 @@ func (c *TTLCache) Exists(key string) bool {
 	return ok
 }
 
+// Get the value at a key
 func (c *TTLCache) Get(key string) (interface{}, error) {
 	c.Lock()
 	defer c.Unlock()
@@ -39,6 +46,7 @@ func (c *TTLCache) Get(key string) (interface{}, error) {
 	return c.keys[key], nil
 }
 
+// Set sets a key with the default ttl
 func (c *TTLCache) Set(key string, value interface{}) error {
 	c.Lock()
 	defer c.Unlock()
@@ -46,12 +54,27 @@ func (c *TTLCache) Set(key string, value interface{}) error {
 		return ERR_KEY_EXISTS
 	}
 	c.keys[key] = value
-	time.AfterFunc(c.ttl, func() {
+	time.AfterFunc(c.defaultTTL, func() {
 		c.Expire(key)
 	})
 	return nil
 }
 
+// SetEx sets a key with a specific ttl
+func (c *TTLCache) SetEx(key string, value interface{}, expireAt time.Duration) error {
+	c.Lock()
+	defer c.Unlock()
+	if _, ok := c.keys[key]; ok {
+		return ERR_KEY_EXISTS
+	}
+	c.keys[key] = value
+	time.AfterFunc(expireAt, func() {
+		c.Expire(key)
+	})
+	return nil
+}
+
+// Expire a key immediately
 func (c *TTLCache) Expire(key string) error {
 	c.Lock()
 	defer c.Unlock()
