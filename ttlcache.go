@@ -7,9 +7,6 @@ import (
 	"time"
 )
 
-// ERR_KEY_EXISTS is the error if a key is unexpectedly already present
-var ERR_KEY_EXISTS = errors.New("TTLCache: Key exists")
-
 // ERR_KEY_NO_EXISTS is the error if an expected key is not present
 var ERR_KEY_NO_EXISTS = errors.New("TTLCache: Key doesn't exist")
 
@@ -50,9 +47,6 @@ func (c *TTLCache) Get(key string) (interface{}, error) {
 func (c *TTLCache) Set(key string, value interface{}) error {
 	c.Lock()
 	defer c.Unlock()
-	if _, ok := c.keys[key]; ok {
-		return ERR_KEY_EXISTS
-	}
 	c.keys[key] = value
 	time.AfterFunc(c.defaultTTL, func() {
 		c.Expire(key)
@@ -64,9 +58,6 @@ func (c *TTLCache) Set(key string, value interface{}) error {
 func (c *TTLCache) SetEx(key string, value interface{}, expireAt time.Duration) error {
 	c.Lock()
 	defer c.Unlock()
-	if _, ok := c.keys[key]; ok {
-		return ERR_KEY_EXISTS
-	}
 	c.keys[key] = value
 	time.AfterFunc(expireAt, func() {
 		c.Expire(key)
